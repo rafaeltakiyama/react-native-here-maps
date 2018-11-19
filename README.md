@@ -29,8 +29,10 @@ ext {
 }
 ```
 
-## Create Here Mpas APP ID and APP TOKEN
+## Configure Here Maps APP ID and APP TOKEN
 https://developer.here.com
+
+In here maps website, you need to configure your Android Package name, and when you create your android project you will need to use the same Package name configure in here maps.
 
 ## How open Here Maps module
 ```javascript
