@@ -7,11 +7,6 @@
  */
 package com.heremapstest;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
@@ -19,16 +14,20 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
-import android.widget.Toast;
 import android.util.Log;
 import android.view.Menu;
+import android.widget.Toast;
 
-import com.here.android.mpa.common.GeoCoordinate;
-import com.here.android.mpa.common.Image;
+import com.here.android.mpa.common.GeoPosition;
 import com.here.android.mpa.common.OnEngineInitListener;
+import com.here.android.mpa.common.PositioningManager;
 import com.here.android.mpa.mapping.Map;
 import com.here.android.mpa.mapping.MapFragment;
-import com.here.android.mpa.mapping.MapMarker;
+
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class BasicMapActivity extends Activity {
     private static final String LOG_TAG = BasicMapActivity.class.getSimpleName();
@@ -38,45 +37,81 @@ public class BasicMapActivity extends Activity {
     /**
      * Permissions that need to be explicitly requested from end user.
      */
-    private static final String[] REQUIRED_SDK_PERMISSIONS = new String[] {
-            Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.WRITE_EXTERNAL_STORAGE };
+    private static final String[] REQUIRED_SDK_PERMISSIONS = new String[]{
+            Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.WRITE_EXTERNAL_STORAGE};
 
     private Map map = null;
     private MapFragment mapFragment = null;
+    private PositioningManager posManager;
 
-    private double mLatitude;
-    private double mLongitude;
     private double mZoom;
-    private String mTitle;
-    private String mDescription;
+    private boolean paused;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Bundle extras = getIntent().getExtras();
-        getExtras(extras);
         checkPermissions();
+
+        getExtras(getIntent().getExtras());
+
+        posManager = PositioningManager.getInstance();
+
+        posManager.addListener(
+                new WeakReference<>(positionListener));
+    }
+
+    public void onResume() {
+        super.onResume();
+        paused = false;
+        if (posManager != null) {
+            posManager.start(
+                    PositioningManager.LocationMethod.GPS_NETWORK);
+        }
+    }
+
+    public void onPause() {
+        if (posManager != null) {
+            posManager.stop();
+        }
+        super.onPause();
+        paused = true;
+    }
+
+    public void onDestroy() {
+        if (posManager != null) {
+            posManager.removeListener(
+                    positionListener);
+        }
+        map = null;
+        super.onDestroy();
     }
 
     private void getExtras(Bundle extras) {
         if (extras != null) {
-            if (extras.containsKey("latitude")) {
-                mLatitude = extras.getDouble("latitude", 0);
-            }
-            if (extras.containsKey("longitude")) {
-                mLongitude = extras.getDouble("longitude", 0);
-            }
             if (extras.containsKey("zoom")) {
                 mZoom = extras.getDouble("zoom", 0);
             }
-            if (extras.containsKey("title")) {
-                mTitle = extras.getString("title", null);
-            }
-            if (extras.containsKey("description")) {
-                mDescription = extras.getString("description", null);
-            }
         }
     }
+
+    private PositioningManager.OnPositionChangedListener positionListener = new
+            PositioningManager.OnPositionChangedListener() {
+
+                public void onPositionUpdated(PositioningManager.LocationMethod method,
+                                              GeoPosition position, boolean isMapMatched) {
+                    if (!paused) {
+                        if (map != null) {
+                            map.setCenter(position.getCoordinate(),
+                                    Map.Animation.NONE);
+                            map.getPositionIndicator().setVisible(true);
+                        }
+                    }
+                }
+
+                public void onPositionFixChanged(PositioningManager.LocationMethod method,
+                                                 PositioningManager.LocationStatus status) {
+                }
+            };
 
     private MapFragment getMapFragment() {
         return (MapFragment) getFragmentManager().findFragmentById(R.id.mapfragment);
@@ -91,34 +126,7 @@ public class BasicMapActivity extends Activity {
                 if (error == OnEngineInitListener.Error.NONE) {
 
                     map = mapFragment.getMap();
-
-                    Image mapMarkerImg = new Image();
-
-                    try {
-                        mapMarkerImg.setImageResource(R.drawable.map_marker);
-                    } catch (IOException e) {
-                        finish();
-                    }
-
-                    GeoCoordinate geoCoordinate = new GeoCoordinate(mLatitude, mLongitude);
-
-                    MapMarker mapMarker = new MapMarker(geoCoordinate, mapMarkerImg);
-
-                    if (mTitle != null) {
-                        mapMarker.setTitle(mTitle);
-                    }
-
-                    if (mDescription != null) {
-                        mapMarker.setDescription(mDescription);
-                    }
-
-                    map.setCenter(geoCoordinate, Map.Animation.NONE);
                     map.setZoomLevel(mZoom);
-                    map.addMapObject(mapMarker);
-
-                    if (mDescription != null || mTitle != null) {
-                        mapMarker.showInfoBubble();
-                    }
 
                 } else {
                     Log.e(LOG_TAG, "Cannot initialize MapFragment (" + error + ")");
@@ -154,7 +162,7 @@ public class BasicMapActivity extends Activity {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[],
-            @NonNull int[] grantResults) {
+                                           @NonNull int[] grantResults) {
         switch (requestCode) {
             case REQUEST_CODE_ASK_PERMISSIONS:
                 for (int index = permissions.length - 1; index >= 0; --index) {

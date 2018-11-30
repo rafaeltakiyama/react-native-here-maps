@@ -27,8 +27,8 @@ export default class App extends Component<Props> {
         <Text style={styles.instructions}>To get started, edit App.js</Text>
         <Text style={styles.instructions}>{instructions}</Text>
         <Button
-            //Latitude, Longitude, Zoom, Title, Description (if title is null, the description doesnt appear)
-            onPress={() => HereMapsModule.openHereMaps(-20.5375968, -47.3830002, 17, 'LuizaLabs', null)}
+            //Zoom
+            onPress={() => HereMapsModule.openHereMaps(17)}
             title='Open Here Maps'
           />
       </View>

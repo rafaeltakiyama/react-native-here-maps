@@ -19,15 +19,11 @@ public class HereMapsModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    void openHereMaps(double latitude, double longitude, double zoom, String title, String description) {
+    void openHereMaps(double zoom) {
         Activity activity = getCurrentActivity();
         if (activity != null) {
             Intent intent = new Intent(activity, BasicMapActivity.class);
-            intent.putExtra("latitude", latitude);
-            intent.putExtra("longitude", longitude);
             intent.putExtra("zoom", zoom);
-            intent.putExtra("title", title);
-            intent.putExtra("description", description);
             activity.startActivity(intent);
         }
     }
